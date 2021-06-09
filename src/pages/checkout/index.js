@@ -6,11 +6,28 @@ import CheckoutProduct from "../../components/CheckoutProduct";
 import { useSession } from "next-auth/client";
 import Currency from "react-currency-formatter";
 import { signIn } from "next-auth/client";
+import { loadStripe } from "@stripe/stripe-js";
+import axios from "axios";
 
 function index() {
   const [session] = useSession();
   const total = useSelector(selectTotal);
   const items = useSelector(selectItems);
+  //setup stripe
+  const stripePromise = loadStripe(process.env.stripe_public_key);
+
+  const handleCheckout = async () => {
+    const stripe = await stripePromise;
+    const response = await axios.post("/api/create-checkout-session", {
+      items,
+      email: session.user.email,
+    });
+    const result = await stripe.redirectToCheckout({
+      sessionId: response.data.id,
+    });
+
+    if (result.error) alert(result.error.message);
+  };
 
   return (
     <div className="bg-gray-100">
@@ -52,7 +69,12 @@ function index() {
               Signin to Procceed
             </button>
           ) : (
-            <button className="button" disabled={items.length === 0}>
+            <button
+              className="button"
+              role="link"
+              disabled={items.length === 0}
+              onClick={handleCheckout}
+            >
               Procceed to Checkout
             </button>
           )}
